@@ -1,0 +1,15 @@
+build/
+*.app
+*.dmg
+.DS_Store
+*.swp
+*~
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+__pycache__/
+*.pyc
+icon_1024.png
+icon_new_1024.png
+LAUNCH.md
