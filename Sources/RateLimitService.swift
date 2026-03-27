@@ -921,12 +921,6 @@ class RateLimitService: ObservableObject {
     
 
     private func parseUsageResponse(_ data: Data) -> RateLimitData? {
-        // Debug: log raw API response to file for diagnosing parsing issues
-        let debugDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Quota")
-        try? FileManager.default.createDirectory(at: debugDir, withIntermediateDirectories: true)
-        try? data.write(to: debugDir.appendingPathComponent("last_api_response.json"))
-
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }

@@ -38,6 +38,25 @@ class UsageHistory {
         }
         historyFile = dir.appendingPathComponent("history.json")
         load()
+        purgeCorruptedData()
+
+        // Clean up debug file from previous versions
+        let debugFile = dir.appendingPathComponent("last_api_response.json")
+        try? FileManager.default.removeItem(at: debugFile)
+    }
+
+    /// Remove snapshots with bogus values from the v1.0.0 utilization parsing bug
+    /// (API returns 0-100 scale but old code treated values <= 1.0 as fractions)
+    private func purgeCorruptedData() {
+        let before = snapshots.count
+        // Any snapshot where fiveHour or sevenDay is exactly 1.0 is suspicious
+        // (would mean 100% usage which should be rare), OR values > 1.0 which
+        // were previously possible with the old fractional interpretation.
+        // Only purge obvious outliers: values that jumped to 1.0 from low usage
+        snapshots.removeAll { snap in
+            snap.fiveHour > 1.0 || snap.sevenDay > 1.0
+        }
+        if snapshots.count < before { save() }
     }
 
     // Record a new data point (called on every successful poll)

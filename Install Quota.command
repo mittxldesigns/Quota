@@ -1,44 +1,58 @@
 #!/bin/bash
 # ──────────────────────────────────────────────
-#  Quota — Install Helper
-#  Moves Quota to Applications & bypasses Gatekeeper
+#  Quota — One-Click Installer
+#  Installs, removes Gatekeeper block, launches.
 # ──────────────────────────────────────────────
 
 clear
-echo ""
-echo "  ╔══════════════════════════════════════╗"
-echo "  ║       Quota — Install Helper         ║"
-echo "  ╚══════════════════════════════════════╝"
-echo ""
+cat << 'BANNER'
+
+  ┌──────────────────────────────────────┐
+  │                                      │
+  │       ⚡ Installing Quota...         │
+  │                                      │
+  └──────────────────────────────────────┘
+
+BANNER
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_PATH="${SCRIPT_DIR}/Quota.app"
 DEST="/Applications/Quota.app"
 
 if [ ! -d "$APP_PATH" ]; then
-    echo "  ✗ Quota.app not found next to this script."
-    echo "    Make sure this file is in the same folder as Quota.app"
+    echo "  ✗ Error: Quota.app not found."
+    echo "    Make sure this file is inside the Quota disk image."
     echo ""
     read -p "  Press Enter to close..."
     exit 1
 fi
 
-echo "  → Moving Quota to Applications..."
-if [ -d "$DEST" ]; then
-    rm -rf "$DEST"
-fi
+# Kill existing instance if running
+pkill -x "Quota" 2>/dev/null && sleep 0.3
+
+# Remove old version
+[ -d "$DEST" ] && rm -rf "$DEST"
+
+# Copy to Applications
+echo "  [1/3] Moving to Applications..."
 cp -R "$APP_PATH" "$DEST"
 
-echo "  → Removing quarantine flag..."
+# Remove quarantine (Gatekeeper bypass)
+echo "  [2/3] Removing Gatekeeper block..."
 xattr -cr "$DEST" 2>/dev/null
 
-echo "  → Launching Quota..."
+# Launch
+echo "  [3/3] Launching..."
 open "$DEST"
 
-echo ""
-echo "  ✓ Done! Quota is now installed and running."
-echo "    You'll see it in your menu bar."
-echo ""
-echo "  You can eject this disk image now."
-echo ""
-read -p "  Press Enter to close..."
+cat << 'DONE'
+
+  ✓ Quota installed successfully!
+
+  Look for it in your menu bar (top-right).
+  Click the icon → Sign in with Claude → Done.
+
+  You can close this window and eject the disk image.
+
+DONE
+sleep 3
