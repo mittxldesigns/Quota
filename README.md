@@ -6,9 +6,13 @@ A macOS menu bar app that tracks your Claude rate limits and learns your usage p
 
 I kept getting rate-limited mid-conversation with zero warning. Anthropic doesn't surface usage data anywhere useful — it's buried in a settings page that updates once you've already been throttled. So I built Quota: a menu bar gauge that polls every 60 seconds, shows exactly where you stand, and over time learns *how you use Claude* to warn you before it happens.
 
+### Install (paste in Terminal)
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mittxldesigns/Quota/main/install.sh | bash
 ```
+
+> **Why Terminal?** macOS blocks unsigned apps downloaded from the internet. This is the only way to install without hitting Apple's Gatekeeper warning. It downloads, installs to /Applications, and launches — takes 5 seconds.
 
 ## How it's different
 
@@ -37,24 +41,18 @@ A colored arc gauge in your menu bar. Green when you're good, yellow when you're
 
 ## Install
 
-Run this in Terminal. Downloads, installs, and launches — no Gatekeeper warnings:
+Open Terminal (Cmd + Space → type "Terminal") and paste:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mittxldesigns/Quota/main/install.sh | bash
 ```
 
-That's it. Quota appears in your menu bar → click it → sign in with Claude → pick your plan.
+Enter your password when asked. Quota installs and launches — look for it in your menu bar.
+
+> **Can I just download the .pkg instead?** You can, but macOS will block it because the app isn't notarized (costs $99/yr). You'd need to right-click → Open → Open again to get past Gatekeeper. The Terminal command above skips all of that.
 
 <details>
-<summary>Other install methods</summary>
-
-### Download PKG
-
-**[Download Quota-1.0.0.pkg](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.pkg)**
-
-> macOS will block the .pkg because it's not notarized. To open it: **right-click → Open → Open again**.
-
-### Build from source
+<summary>Build from source</summary>
 
 ```bash
 git clone https://github.com/mittxldesigns/Quota.git
@@ -63,9 +61,9 @@ bash build.sh --install
 open /Applications/Quota.app
 ```
 
-</details>
+Needs Xcode 16+ and macOS 14+.
 
-Needs Xcode 16+ and macOS 14+. Liquid Glass UI on macOS 26, material design on older versions.
+</details>
 
 ## Privacy
 
