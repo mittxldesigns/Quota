@@ -77,6 +77,12 @@ if command -v hdiutil &>/dev/null; then
     # Create Applications symlink for drag-to-install
     ln -s /Applications "${DMG_DIR}/Applications"
 
+    # Include install helper script
+    if [ -f "Install Quota.command" ]; then
+        cp "Install Quota.command" "${DMG_DIR}/"
+        chmod +x "${DMG_DIR}/Install Quota.command"
+    fi
+
     hdiutil create \
         -volname "${DISPLAY_NAME}" \
         -srcfolder "${DMG_DIR}" \

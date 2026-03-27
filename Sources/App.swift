@@ -13,6 +13,64 @@ struct QuotaApp: App {
             UserDefaults.standard.set(true, forKey: "didInitialSetup")
             UserDefaults.standard.set(true, forKey: "launchAtLogin")
         }
+        DispatchQueue.main.async { Self.moveToApplicationsIfNeeded() }
+    }
+
+    /// Checks if the app is running from outside /Applications and offers to move it there.
+    private static func moveToApplicationsIfNeeded() {
+        let bundlePath = Bundle.main.bundlePath
+        let appName = Bundle.main.bundleURL.lastPathComponent  // "Quota.app"
+
+        // Already in /Applications — nothing to do
+        if bundlePath.hasPrefix("/Applications") { return }
+
+        // Don't nag on dev builds (running from build/ or Xcode)
+        if bundlePath.contains("/build/") || bundlePath.contains("/DerivedData/") { return }
+
+        let dest = "/Applications/\(appName)"
+
+        let alert = NSAlert()
+        alert.messageText = "Move to Applications?"
+        alert.informativeText = "Quota works best from your Applications folder. Move it there now?\n\nThis also helps with macOS security — apps in /Applications are trusted more by Gatekeeper."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Move to Applications")
+        alert.addButton(withTitle: "Not Now")
+        alert.icon = NSImage(named: NSImage.applicationIconName)
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        do {
+            let fm = FileManager.default
+            // Remove old copy if present
+            if fm.fileExists(atPath: dest) {
+                try fm.removeItem(atPath: dest)
+            }
+            try fm.copyItem(atPath: bundlePath, toPath: dest)
+
+            // Remove quarantine attribute on the new copy
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            proc.arguments = ["-cr", dest]
+            try? proc.run()
+            proc.waitUntilExit()
+
+            // Relaunch from /Applications
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            task.arguments = ["-n", dest]
+            try task.run()
+
+            // Quit current instance
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NSApplication.shared.terminate(nil)
+            }
+        } catch {
+            let errAlert = NSAlert()
+            errAlert.messageText = "Couldn't move Quota"
+            errAlert.informativeText = "Please drag Quota.app to your Applications folder manually.\n\nThen right-click it → Open to launch."
+            errAlert.alertStyle = .warning
+            errAlert.runModal()
+        }
     }
 
     var body: some Scene {

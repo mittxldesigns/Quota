@@ -35,14 +35,43 @@ A colored arc gauge in your menu bar. Green when you're good, yellow when you're
 
 ## Install
 
-Download the DMG above, open it, drag to Applications. Launch Quota, click "Continue with Claude", sign in through your browser, pick your plan. That's it — it'll show up in your menu bar and start tracking.
+### One-line install (recommended)
 
-Or build from source:
+Copy-paste this into Terminal. It downloads, installs, and launches Quota:
 
+```bash
+curl -sL https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.dmg -o /tmp/Quota.dmg && \
+hdiutil attach /tmp/Quota.dmg -quiet && \
+cp -R "/Volumes/Quota/Quota.app" /Applications/ && \
+xattr -cr /Applications/Quota.app && \
+hdiutil detach "/Volumes/Quota" -quiet && \
+rm /tmp/Quota.dmg && \
+open /Applications/Quota.app
 ```
+
+That's it — Quota appears in your menu bar. Click it, sign in with Claude, pick your plan.
+
+### Download the DMG
+
+**[Download Quota-1.0.0.dmg](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.dmg)** — macOS 14+ (Sonoma and later)
+
+After downloading:
+
+1. Open the DMG
+2. **Double-click "Install Quota"** — it moves the app to Applications and handles everything
+3. Or drag `Quota.app` to the Applications folder yourself
+
+> **macOS Gatekeeper warning?** Since Quota isn't notarized with Apple yet, macOS may block the first launch. To fix:
+> - Right-click `Quota.app` in Applications → click **Open** → click **Open** again in the dialog
+> - Or run in Terminal: `xattr -cr /Applications/Quota.app && open /Applications/Quota.app`
+
+### Build from source
+
+```bash
 git clone https://github.com/mittxldesigns/Quota.git
 cd Quota
 bash build.sh --install
+open /Applications/Quota.app
 ```
 
 Needs Xcode 16+ and macOS 14+. Liquid Glass UI on macOS 26, material design on older versions.
