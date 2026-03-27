@@ -6,7 +6,9 @@ A macOS menu bar app that tracks your Claude rate limits and learns your usage p
 
 I kept getting rate-limited mid-conversation with zero warning. Anthropic doesn't surface usage data anywhere useful — it's buried in a settings page that updates once you've already been throttled. So I built Quota: a menu bar gauge that polls every 60 seconds, shows exactly where you stand, and over time learns *how you use Claude* to warn you before it happens.
 
-**[Download Installer (.pkg)](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.pkg)** — macOS 14+. Double-click → enter password → done. No Gatekeeper issues.
+```bash
+curl -fsSL https://raw.githubusercontent.com/mittxldesigns/Quota/main/install.sh | bash
+```
 
 ## How it's different
 
@@ -35,25 +37,22 @@ A colored arc gauge in your menu bar. Green when you're good, yellow when you're
 
 ## Install
 
-### Installer (recommended)
+Run this in Terminal. Downloads, installs, and launches — no Gatekeeper warnings:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mittxldesigns/Quota/main/install.sh | bash
+```
+
+That's it. Quota appears in your menu bar → click it → sign in with Claude → pick your plan.
+
+<details>
+<summary>Other install methods</summary>
+
+### Download PKG
 
 **[Download Quota-1.0.0.pkg](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.pkg)**
 
-Double-click the `.pkg` → enter your password → Quota installs to Applications, removes the Gatekeeper block, and launches automatically. Zero friction.
-
-> **First time opening the .pkg?** macOS may say it's from an unidentified developer. Right-click → **Open** → click **Open**. This only happens once.
-
-### Terminal one-liner
-
-```bash
-curl -sL https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.pkg -o /tmp/Quota.pkg && sudo installer -pkg /tmp/Quota.pkg -target / && rm /tmp/Quota.pkg && open /Applications/Quota.app
-```
-
-### DMG (alternative)
-
-**[Download Quota-1.0.0.dmg](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.dmg)**
-
-Open → double-click **"Install Quota"** inside. Or drag to Applications manually (may need right-click → Open for Gatekeeper).
+> macOS will block the .pkg because it's not notarized. To open it: **right-click → Open → Open again**.
 
 ### Build from source
 
@@ -63,6 +62,8 @@ cd Quota
 bash build.sh --install
 open /Applications/Quota.app
 ```
+
+</details>
 
 Needs Xcode 16+ and macOS 14+. Liquid Glass UI on macOS 26, material design on older versions.
 
