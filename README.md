@@ -6,7 +6,7 @@ A macOS menu bar app that tracks your Claude rate limits and learns your usage p
 
 I kept getting rate-limited mid-conversation with zero warning. Anthropic doesn't surface usage data anywhere useful — it's buried in a settings page that updates once you've already been throttled. So I built Quota: a menu bar gauge that polls every 60 seconds, shows exactly where you stand, and over time learns *how you use Claude* to warn you before it happens.
 
-**[Download Quota-1.0.0.dmg](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.dmg)** — macOS 14+ (Sonoma and later)
+**[Download Installer (.pkg)](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.pkg)** — macOS 14+. Double-click → enter password → done. No Gatekeeper issues.
 
 ## How it's different
 
@@ -35,25 +35,25 @@ A colored arc gauge in your menu bar. Green when you're good, yellow when you're
 
 ## Install
 
-### Quick install (recommended)
+### Installer (recommended)
 
-Paste in Terminal — downloads, installs, and launches in one shot:
+**[Download Quota-1.0.0.pkg](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.pkg)**
+
+Double-click the `.pkg` → enter your password → Quota installs to Applications, removes the Gatekeeper block, and launches automatically. Zero friction.
+
+> **First time opening the .pkg?** macOS may say it's from an unidentified developer. Right-click → **Open** → click **Open**. This only happens once.
+
+### Terminal one-liner
 
 ```bash
-curl -sL https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.dmg -o /tmp/Quota.dmg && hdiutil attach /tmp/Quota.dmg -quiet && cp -R "/Volumes/Quota/Quota.app" /Applications/ && xattr -cr /Applications/Quota.app && hdiutil detach "/Volumes/Quota" -quiet && rm /tmp/Quota.dmg && open /Applications/Quota.app
+curl -sL https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.pkg -o /tmp/Quota.pkg && sudo installer -pkg /tmp/Quota.pkg -target / && rm /tmp/Quota.pkg && open /Applications/Quota.app
 ```
 
-That's it. Quota shows up in your menu bar → click it → sign in with Claude → pick your plan.
+### DMG (alternative)
 
-### Download DMG
+**[Download Quota-1.0.0.dmg](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.dmg)**
 
-**[Download Quota-1.0.0.dmg](https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.0.0.dmg)** — macOS 14+ (Sonoma and later)
-
-1. Open the DMG
-2. **Double-click "Install Quota"** — installs, removes Gatekeeper block, launches. Done.
-
-> **If you dragged to Applications manually and see "Apple could not verify":**
-> Right-click `Quota.app` → **Open** → click **Open** again. Or run: `xattr -cr /Applications/Quota.app`
+Open → double-click **"Install Quota"** inside. Or drag to Applications manually (may need right-click → Open for Gatekeeper).
 
 ### Build from source
 

@@ -94,6 +94,23 @@ if command -v hdiutil &>/dev/null; then
     echo "==> DMG: ${DMG_PATH}"
 fi
 
+# Create .pkg installer (recommended for distribution)
+if command -v pkgbuild &>/dev/null; then
+    echo "==> Creating PKG installer..."
+    PKG_PATH="${BUILD_DIR}/${APP_NAME}-${VERSION}.pkg"
+
+    pkgbuild \
+        --component "${APP_BUNDLE}" \
+        --install-location "/Applications" \
+        --scripts "installer/scripts" \
+        --identifier "com.tanishmittal.quota" \
+        --version "${VERSION}" \
+        "${PKG_PATH}" \
+        2>/dev/null
+
+    echo "==> PKG: ${PKG_PATH}"
+fi
+
 echo ""
 echo "To test:    open ${APP_BUNDLE}"
 echo "To install: bash build.sh --install"

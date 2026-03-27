@@ -1,0 +1,11 @@
+#!/bin/bash
+# Remove quarantine attribute (kills Gatekeeper warning)
+xattr -cr /Applications/Quota.app 2>/dev/null
+
+# Launch Quota for the user (not as root)
+CONSOLE_USER=$(stat -f "%Su" /dev/console)
+if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
+    sudo -u "$CONSOLE_USER" open /Applications/Quota.app &
+fi
+
+exit 0
