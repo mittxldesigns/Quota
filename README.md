@@ -41,7 +41,7 @@ A colored arc gauge in your menu bar. Green when you're good, yellow when you're
 
 ## Install
 
-Open Terminal (Cmd + Space → type "Terminal") and paste:
+Open Terminal (`Cmd + Space` → type "Terminal") and paste:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mittxldesigns/Quota/main/install.sh | bash
@@ -49,7 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/mittxldesigns/Quota/main/install.sh
 
 Enter your password when asked. Quota installs and launches — look for it in your menu bar.
 
-> **Can I just download the .pkg instead?** You can, but macOS will block it because the app isn't notarized (costs $99/yr). You'd need to right-click → Open → Open again to get past Gatekeeper. The Terminal command above skips all of that.
+macOS 14+ (Sonoma and later). Liquid Glass UI on macOS 26, material design on older versions.
 
 <details>
 <summary>Build from source</summary>
@@ -61,7 +61,7 @@ bash build.sh --install
 open /Applications/Quota.app
 ```
 
-Needs Xcode 16+ and macOS 14+.
+Needs Xcode 16+.
 
 </details>
 
