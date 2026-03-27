@@ -921,6 +921,12 @@ class RateLimitService: ObservableObject {
     
 
     private func parseUsageResponse(_ data: Data) -> RateLimitData? {
+        // Debug: log raw API response to file for diagnosing parsing issues
+        let debugDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Quota")
+        try? FileManager.default.createDirectory(at: debugDir, withIntermediateDirectories: true)
+        try? data.write(to: debugDir.appendingPathComponent("last_api_response.json"))
+
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
@@ -977,14 +983,14 @@ class RateLimitService: ObservableObject {
         return d
     }
 
-    // Handle both 0-100 (percentage) and 0-1 (fraction) formats, plus Int types
+    // Anthropic API returns utilization as 0-100 (percentage), convert to 0-1 fraction
     private func normalizeUtilization(_ value: Any?) -> Double {
         let raw: Double
         if let d = value as? Double { raw = d }
         else if let i = value as? Int { raw = Double(i) }
         else { return 0 }
-        // If > 1, assume it's a percentage (0-100). Otherwise it's already 0-1.
-        let normalized = raw > 1.0 ? raw / 100.0 : raw
+        // API always returns 0-100 scale (e.g. 1.0 = 1%, 39.0 = 39%, 100.0 = 100%)
+        let normalized = raw / 100.0
         return min(1.0, max(0, normalized))
     }
 
