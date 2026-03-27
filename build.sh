@@ -98,16 +98,46 @@ fi
 if command -v pkgbuild &>/dev/null; then
     echo "==> Creating PKG installer..."
     PKG_PATH="${BUILD_DIR}/${APP_NAME}-${VERSION}.pkg"
+    PKG_ROOT="${BUILD_DIR}/pkg_root"
+    PKG_PLIST="${BUILD_DIR}/component.plist"
+
+    # Stage app in a clean root directory
+    rm -rf "${PKG_ROOT}"
+    mkdir -p "${PKG_ROOT}/Applications"
+    cp -R "${APP_BUNDLE}" "${PKG_ROOT}/Applications/"
+
+    # Create component plist that disables relocation
+    cat > "${PKG_PLIST}" << 'PLISTEOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+    <dict>
+        <key>BundleHasStrictIdentifier</key>
+        <true/>
+        <key>BundleIsRelocatable</key>
+        <false/>
+        <key>BundleIsVersionChecked</key>
+        <false/>
+        <key>BundleOverwriteAction</key>
+        <string>upgrade</string>
+        <key>RootRelativeBundlePath</key>
+        <string>Applications/Quota.app</string>
+    </dict>
+</array>
+</plist>
+PLISTEOF
 
     pkgbuild \
-        --component "${APP_BUNDLE}" \
-        --install-location "/Applications" \
+        --root "${PKG_ROOT}" \
+        --component-plist "${PKG_PLIST}" \
         --scripts "installer/scripts" \
         --identifier "com.tanishmittal.quota" \
         --version "${VERSION}" \
         "${PKG_PATH}" \
         2>/dev/null
 
+    rm -rf "${PKG_ROOT}" "${PKG_PLIST}"
     echo "==> PKG: ${PKG_PATH}"
 fi
 
