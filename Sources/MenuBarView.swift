@@ -96,157 +96,192 @@ struct MenuBarPopover: View {
     // Connected state
 
     private func connectedView(_ data: RateLimitData) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             headerRow(data)
-                .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 0)
+                .padding(.horizontal, 14).padding(.top, 10)
 
-            
-            VStack(spacing: 12) {
+            // Main display: rings left, stats right
+            HStack {
                 concentricRings(data)
-                    .padding(.top, 4)
 
-                HStack(spacing: 16) {
-                    legendDot(color: ringColor(for: data.fiveHourUtilization, base: Theme.ring5h),
-                              label: "5-Hour", value: data.fiveHourUtilization)
-                    legendDot(color: ringColor(for: data.sevenDayUtilization, base: Theme.ring7d),
-                              label: "7-Day", value: data.sevenDayUtilization)
+                Spacer()
+
+                // Stats pushed to the right
+                VStack(alignment: .trailing, spacing: 8) {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Circle().fill(ringColor(for: data.fiveHourUtilization, base: Theme.ring5h)).frame(width: 7, height: 7)
+                            Text("5-Hour")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("\(Int(data.fiveHourUtilization * 100))%")
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                        Text("Resets \(data.fiveHourResetFormatted)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    VStack(alignment: .trailing, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Circle().fill(ringColor(for: data.sevenDayUtilization, base: Theme.ring7d)).frame(width: 7, height: 7)
+                            Text("7-Day")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("\(Int(data.sevenDayUtilization * 100))%")
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                        Text("Resets \(data.sevenDayResetFormatted)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .compatGlass(tint: isMaxUser ? Theme.maxGlow : Theme.glassTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
-            .padding(.horizontal, 12)
+            .compatGlass(tint: isMaxUser ? Theme.maxGlow : Theme.glassTint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, 10)
 
-            
-            HStack(spacing: 8) {
-                detailCard(
-                    label: "5-Hour Window",
-                    value: data.fiveHourUtilization,
-                    reset: data.fiveHourResetFormatted,
-                    isBinding: data.representativeClaim == "five_hour",
-                    color: ringColor(for: data.fiveHourUtilization, base: Theme.ring5h)
-                )
-                detailCard(
-                    label: "7-Day Window",
-                    value: data.sevenDayUtilization,
-                    reset: data.sevenDayResetFormatted,
-                    isBinding: data.representativeClaim == "seven_day",
-                    color: ringColor(for: data.sevenDayUtilization, base: Theme.ring7d)
-                )
+            // Status strip: peak + users + prediction all in one row
+            HStack(spacing: 10) {
+                // Peak badge
+                let peak = ClaudePeakStatus.current
+                HStack(spacing: 3) {
+                    Image(systemName: peak.icon)
+                        .font(.system(size: 9))
+                    Text(peak == .peak ? "Peak" : "Off-Peak")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(peak.color)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .compatGlass(tint: peak.color.opacity(0.06), in: .capsule)
+
+                // Active users badge
+                if let pred = service.prediction, pred.currentBurnRatePerHour > 0.5 {
+                    let users = pred.estimatedConcurrentUsers
+                    HStack(spacing: 3) {
+                        Image(systemName: users > 1 ? "person.2.fill" : "person.fill")
+                            .font(.system(size: 9))
+                        Text("\(users)")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                    }
+                    .foregroundStyle(users > 2 ? .orange : users > 1 ? .yellow : .green)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .compatGlass(tint: (users > 2 ? Color.orange : users > 1 ? Color.yellow : Color.green).opacity(0.06), in: .capsule)
+                }
+
+                // Time to limit badge
+                if let pred = service.prediction, pred.willHitLimit, let ttl = pred.estimatedTimeToLimit {
+                    let hours = ttl / 3600
+                    HStack(spacing: 3) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 9))
+                        Text(hours >= 1 ? String(format: "%.0fh", hours) : String(format: "%.0fm", hours * 60))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                    }
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .compatGlass(tint: Color.orange.opacity(0.06), in: .capsule)
+                }
+
+                // Plan tip badge
+                if data.planRecommendation != nil {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.yellow)
+                        .padding(.horizontal, 6).padding(.vertical, 4)
+                        .compatGlass(tint: Color.yellow.opacity(0.06), in: .capsule)
+                }
+
+                Spacer()
+
+                // Status
+                HStack(spacing: 3) {
+                    Circle()
+                        .fill(data.status == "allowed" ? Color.green : Color.red)
+                        .frame(width: 6, height: 6)
+                    Text(data.status == "allowed" ? "OK" : "Limited")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
 
-            // Advanced mode: per-model breakdown + exact reset times
+            // Token usage bars
+            if let ts = service.tokenStats, ts.allTimeTotal > 0 {
+                tokenStatsVisual(ts)
+                    .padding(.horizontal, 10)
+            }
+
+            // Advanced mode
             if advancedMode {
                 advancedPanel(data)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 10)
             }
 
-            peakStatusRow
-                .padding(.horizontal, 12)
-
-            // Predictions — learned from your usage patterns
-            if let pred = service.prediction {
-                HStack(spacing: 6) {
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(pred.willHitLimit ? .orange : .purple)
-                    Text(pred.formatted)
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    if service.history.daysOfData > 0 {
-                        Text("\(service.history.daysOfData)d")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.quaternary)
-                    }
-                }
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .compatGlass(tint: pred.willHitLimit ? Color.orange.opacity(0.03) : Color.purple.opacity(0.03), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .padding(.horizontal, 12)
-            } else if let burnRate = data.burnRateEstimate {
-                // Fallback to simple burn rate if not enough history yet
-                HStack(spacing: 6) {
-                    Image(systemName: "speedometer")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.orange)
-                    Text(burnRate)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .compatGlass(tint: Color.orange.opacity(0.03), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .padding(.horizontal, 12)
-            }
-
-            if let planTip = data.planRecommendation {
-                HStack(spacing: 6) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.yellow)
-                    Text(planTip)
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                }
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .compatGlass(tint: Color.yellow.opacity(0.03), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .padding(.horizontal, 12)
-            }
-
-            // Token consumption stats (from Claude Code local data)
+            // Cost comparison badge — this month vs plan
             if let ts = service.tokenStats, ts.allTimeTotal > 0 {
-                tokenStatsSection(ts)
-                    .padding(.horizontal, 12)
+                let planCost = TokenStats.planCost(service.userPlan)
+                let monthCost = ts.monthApiCost
+                let saved = monthCost - planCost
+                let isSaving = saved > 0
+                HStack(spacing: 6) {
+                    Image(systemName: isSaving ? "dollarsign.circle.fill" : "chart.bar.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(isSaving ? .green : .cyan)
+                    VStack(alignment: .leading, spacing: 1) {
+                        if isSaving {
+                            Text("\(TokenStats.formatCost(saved)) saved this month")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.green)
+                        } else {
+                            Text("This month: \(TokenStats.formatCost(monthCost)) via API")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                        Text("API: \(TokenStats.formatCost(monthCost))/mo · Plan: \(TokenStats.formatCost(planCost))/mo · Total: \(TokenStats.formatCost(ts.apiCost))")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .compatGlass(tint: (isSaving ? Color.green : Color.cyan).opacity(0.05), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(.horizontal, 10)
             }
 
+            // Update banner
             if let version = service.updateAvailable {
                 HStack(spacing: 6) {
                     if let progress = service.updateProgress {
-                        // Updating in progress
                         ProgressView().controlSize(.small)
                         Text(progress)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.primary)
+                            .font(.system(size: 12, weight: .semibold))
                         Spacer()
                     } else {
-                        // Update available, not started yet
                         Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.blue)
-                        Text("v\(version) available")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.primary)
+                        Text("v\(version)")
+                            .font(.system(size: 12, weight: .semibold))
                         Spacer()
-                        Button("Install") { service.performUpdate() }
-                            .font(.system(size: 9, weight: .semibold))
+                        Button("Update") { service.performUpdate() }
+                            .font(.system(size: 11, weight: .semibold))
                             .buttonStyle(.plain)
-                            .padding(.horizontal, 10).padding(.vertical, 3)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
                             .compatGlassInteractive(tint: .blue.opacity(0.3), in: .capsule)
                         Button { service.dismissUpdate() } label: {
                             Image(systemName: "xmark")
-                                .font(.system(size: 8, weight: .bold))
+                                .font(.system(size: 9, weight: .bold))
                                 .foregroundStyle(.tertiary)
                         }
                         .buttonStyle(.borderless)
                     }
                 }
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .compatGlass(tint: Color.blue.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .compatGlass(tint: Color.blue.opacity(0.05), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(.horizontal, 10)
             }
 
-            metaRow(data)
-                .padding(.horizontal, 16).padding(.bottom, 2)
-
             footerBar
-                .padding(.horizontal, 16).padding(.bottom, 7)
+                .padding(.horizontal, 14).padding(.bottom, 6)
         }
     }
 
@@ -256,10 +291,10 @@ struct MenuBarPopover: View {
         HStack(spacing: 5) {
             Circle().fill(color).frame(width: 8, height: 8)
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
             Text("\(Int(value * 100))%")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
         }
     }
@@ -270,22 +305,22 @@ struct MenuBarPopover: View {
         HStack(spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "gauge.open.with.lines.needle.33percent")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(data.status == "allowed"
                         ? AnyShapeStyle(Theme.safe)
                         : AnyShapeStyle(Theme.critical))
                 Text("Quota")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.primary)
                 if let plan = service.planDisplayName {
                     HStack(spacing: 3) {
                         if isMaxUser {
                             Image(systemName: "bolt.fill")
-                                .font(.system(size: 7, weight: .bold))
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(Theme.maxGold)
                         }
                         Text(plan)
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                     }
                     .foregroundStyle(isMaxUser ? AnyShapeStyle(Theme.maxGold) : AnyShapeStyle(.secondary))
                     .padding(.horizontal, 6).padding(.vertical, 2)
@@ -298,7 +333,7 @@ struct MenuBarPopover: View {
 
             Button { service.refresh() } label: {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -355,11 +390,11 @@ struct MenuBarPopover: View {
 
             VStack(spacing: -1) {
                 Text("\(Int(data.activeLimitPercent * 100))")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                     .contentTransition(.numericText())
                 Text("%")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(.tertiary)
             }
         }
@@ -376,17 +411,17 @@ struct MenuBarPopover: View {
             HStack(spacing: 5) {
                 Circle().fill(color).frame(width: 7, height: 7)
                 Text(label)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
                 if isBinding {
                     Text("\u{25C6}")
-                        .font(.system(size: 5))
+                        .font(.system(size: 9))
                         .foregroundStyle(color)
                 }
                 Spacer()
             }
             Text("\(Int(value * 100))%")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .font(.system(size: 30, weight: .bold, design: .rounded))
                 .foregroundStyle(color)
                 .contentTransition(.numericText())
 
@@ -404,7 +439,7 @@ struct MenuBarPopover: View {
             .frame(height: 3)
 
             Text("Resets \(reset)")
-                .font(.system(size: 9, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.tertiary)
         }
         .padding(10)
@@ -420,12 +455,12 @@ struct MenuBarPopover: View {
             HStack(spacing: 4) {
                 Image(systemName: data.status == "allowed"
                       ? "checkmark.circle.fill" : "exclamationmark.octagon.fill")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(data.status == "allowed"
                         ? (isMaxUser ? AnyShapeStyle(Theme.maxGold) : AnyShapeStyle(Theme.safe))
                         : AnyShapeStyle(Theme.critical))
                 Text(data.status == "allowed" ? "All clear" : "Limited")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 8).padding(.vertical, 4)
@@ -435,7 +470,7 @@ struct MenuBarPopover: View {
 
             if service.lastUpdated != nil {
                 Text(service.lastUpdatedFormatted)
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(.quaternary)
             }
         }
@@ -443,53 +478,46 @@ struct MenuBarPopover: View {
 
     
 
-    private func tokenStatsSection(_ ts: TokenStats) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Image(systemName: "number.square.fill")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.cyan)
-                Text("Token Usage")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("Claude Code")
-                    .font(.system(size: 8, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.quaternary)
-            }
+    private func tokenStatsVisual(_ ts: TokenStats) -> some View {
+        let maxVal = max(Double(ts.allTimeTotal), 1)
+        var rows: [(String, Int, Color)] = []
+        // Live session at top if active
+        if ts.activeSessions > 0 && ts.liveTotal > 0 {
+            rows.append(("Live", ts.liveTotal, .green))
+        }
+        rows.append(contentsOf: [
+            ("Today", ts.todayTotal, .cyan),
+            ("Week", ts.weekTotal, .blue),
+            ("Month", ts.monthTotal, .indigo),
+            ("Total", ts.allTimeTotal, .purple),
+        ])
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 5) {
-                tokenStatCard(label: "Today", value: ts.todayTotal, input: ts.todayInput, output: ts.todayOutput)
-                tokenStatCard(label: "This Week", value: ts.weekTotal, input: ts.weekInput, output: ts.weekOutput)
-                tokenStatCard(label: "This Month", value: ts.monthTotal, input: ts.monthInput, output: ts.monthOutput)
-                tokenStatCard(label: "All Time", value: ts.allTimeTotal, input: ts.allTimeInput, output: ts.allTimeOutput)
+        return VStack(spacing: 5) {
+            ForEach(rows, id: \.0) { label, value, color in
+                HStack(spacing: 8) {
+                    Text(label)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(label == "Live" ? AnyShapeStyle(color) : AnyShapeStyle(.tertiary))
+                        .frame(width: 42, alignment: .trailing)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.primary.opacity(0.06))
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(color.opacity(0.6))
+                                .frame(width: geo.size.width * max(0.02, Double(value) / maxVal))
+                        }
+                    }
+                    .frame(height: 8)
+                    Text(TokenStats.formatTokens(value))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(label == "Live" ? AnyShapeStyle(color) : AnyShapeStyle(.secondary))
+                        .frame(width: 48, alignment: .trailing)
+                }
             }
         }
         .padding(.horizontal, 10).padding(.vertical, 8)
-        .compatGlass(tint: Color.cyan.opacity(0.03), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    private func tokenStatCard(label: String, value: Int, input: Int, output: Int) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label)
-                .font(.system(size: 8.5, weight: .semibold))
-                .foregroundStyle(.tertiary)
-            Text(TokenStats.formatTokens(value))
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(value > 0 ? .primary : .quaternary)
-            if value > 0 {
-                HStack(spacing: 3) {
-                    Text("↑\(TokenStats.formatTokens(input))")
-                        .foregroundStyle(.cyan.opacity(0.7))
-                    Text("↓\(TokenStats.formatTokens(output))")
-                        .foregroundStyle(.mint.opacity(0.7))
-                }
-                .font(.system(size: 7.5, weight: .medium, design: .monospaced))
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8).padding(.vertical, 6)
-        .compatGlass(tint: Color.primary.opacity(0.02), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .compatGlass(tint: Color.cyan.opacity(0.02), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private static let localTimeFmt: DateFormatter = {
@@ -503,10 +531,10 @@ struct MenuBarPopover: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 5) {
                 Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.blue)
                 Text("Detailed Breakdown")
-                    .font(.system(size: 9.5, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
             }
@@ -515,18 +543,18 @@ struct MenuBarPopover: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Session resets")
-                        .font(.system(size: 8.5, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.quaternary)
                     Text(Self.localTimeFmt.string(from: data.fiveHourReset))
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
                         .foregroundStyle(.primary)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Weekly resets")
-                        .font(.system(size: 8.5, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.quaternary)
                     Text(Self.localTimeFmt.string(from: data.sevenDayReset))
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
                         .foregroundStyle(.primary)
                 }
                 Spacer()
@@ -536,7 +564,7 @@ struct MenuBarPopover: View {
             if let sonnet = data.sonnetUtilization, sonnet > 0 {
                 HStack(spacing: 8) {
                     Text("Sonnet (7d)")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.tertiary)
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
@@ -549,14 +577,14 @@ struct MenuBarPopover: View {
                     }
                     .frame(height: 3)
                     Text("\(Int(sonnet * 100))%")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
             }
             if let opus = data.opusUtilization, opus > 0 {
                 HStack(spacing: 8) {
                     Text("Opus (7d)")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.tertiary)
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
@@ -569,7 +597,7 @@ struct MenuBarPopover: View {
                     }
                     .frame(height: 3)
                     Text("\(Int(opus * 100))%")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -581,12 +609,12 @@ struct MenuBarPopover: View {
                         .font(.system(size: 8))
                         .foregroundStyle(.green)
                     Text("Extra usage enabled")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.tertiary)
                     if let credits = data.extraUsageCreditsUsed, credits > 0 {
                         Spacer()
                         Text("$\(String(format: "%.2f", credits)) used")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundStyle(.green)
                     }
                 }
@@ -600,14 +628,14 @@ struct MenuBarPopover: View {
         let status = ClaudePeakStatus.current
         return HStack(spacing: 8) {
             Image(systemName: status.icon)
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(status.color)
             VStack(alignment: .leading, spacing: 2) {
                 Text(status.rawValue)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
                 Text(status.tip)
-                    .font(.system(size: 9.5, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.tertiary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -615,7 +643,7 @@ struct MenuBarPopover: View {
             Spacer()
             if !status.timeUntilChange.isEmpty {
                 Text(status.timeUntilChange)
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.system(size: 14, weight: .bold, design: .monospaced))
                     .foregroundStyle(status.color.opacity(0.8))
             }
         }
@@ -643,7 +671,7 @@ struct MenuBarPopover: View {
 
             VStack(spacing: 4) {
                 Text("You're in!")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                 Text("What Claude plan are you on?")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -675,7 +703,7 @@ struct MenuBarPopover: View {
             HStack {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(label)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.primary)
                     Text(desc)
                         .font(.system(size: 9))
@@ -683,7 +711,7 @@ struct MenuBarPopover: View {
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(.quaternary)
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
@@ -708,13 +736,13 @@ struct MenuBarPopover: View {
                         .stroke(Color.primary.opacity(0.05), lineWidth: Theme.innerWidth)
                         .frame(width: 48, height: 48)
                     Image(systemName: "person.crop.circle")
-                        .font(.system(size: 18, weight: .light))
+                        .font(.system(size: 22, weight: .light))
                         .foregroundStyle(.quaternary)
                 }
 
                 VStack(spacing: 5) {
                     Text("Sign in with Claude")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                     Text("Requires a Claude **Pro**, **Max**, or **Team** plan.")
                         .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
@@ -736,11 +764,11 @@ struct MenuBarPopover: View {
                     HStack(spacing: 7) {
                         ProgressView().controlSize(.small)
                         Text("Waiting for browser\u{2026}")
-                            .font(.system(size: 10.5, weight: .medium))
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
                     Button("Cancel") { oauth.cancel() }
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 14).padding(.vertical, 5)
@@ -754,7 +782,7 @@ struct MenuBarPopover: View {
                         Image(systemName: "arrow.right.circle.fill")
                             .font(.system(size: 12))
                         Text("Continue with Claude")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                     }
                     .padding(.horizontal, 18).padding(.vertical, 7)
                 }
@@ -790,7 +818,7 @@ struct MenuBarPopover: View {
                 ProgressView().controlSize(.small)
             }
             Text("Fetching usage\u{2026}")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -806,7 +834,7 @@ struct MenuBarPopover: View {
                     .stroke(Color.primary.opacity(0.05), lineWidth: Theme.outerWidth)
                     .frame(width: 72, height: 72)
                 Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 22, weight: .medium))
                     .foregroundStyle(.yellow)
             }
             Text(msg)
@@ -816,12 +844,12 @@ struct MenuBarPopover: View {
                 .lineLimit(3)
             HStack(spacing: 8) {
                 Button("Retry") { service.refresh() }
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
                     .buttonStyle(.plain)
                     .padding(.horizontal, 14).padding(.vertical, 5)
                     .compatGlassInteractive(in: .capsule)
                 Button("Sign Out") { service.disconnect() }
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
                     .buttonStyle(.plain)
                     .foregroundStyle(.red)
                     .padding(.horizontal, 14).padding(.vertical, 5)
@@ -938,7 +966,7 @@ struct MenuBarPopover: View {
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "gearshape").font(.system(size: 9))
-                        Text("Settings").font(.system(size: 10, weight: .medium))
+                        Text("Settings").font(.system(size: 14, weight: .medium))
                     }
                     .foregroundStyle(.tertiary)
                 }
@@ -948,7 +976,7 @@ struct MenuBarPopover: View {
 
             Button { NSApplication.shared.terminate(nil) } label: {
                 Text("Quit")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.quaternary)
             }
             .buttonStyle(.borderless)

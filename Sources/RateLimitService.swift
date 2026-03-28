@@ -314,6 +314,12 @@ class RateLimitService: ObservableObject {
             Task { @MainActor in self?.checkPeakTransition() }
         }
 
+        // Load token stats immediately on launch (don't wait for first poll)
+        Task.detached(priority: .utility) { [tokenTracker] in
+            let ts = tokenTracker.refresh()
+            await MainActor.run { [weak self] in self?.tokenStats = ts }
+        }
+
         if let creds = CredentialStore.load() {
             credentials = creds
             isConnected = true

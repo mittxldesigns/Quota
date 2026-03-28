@@ -6,7 +6,7 @@ DISPLAY_NAME="Quota"
 BUILD_DIR="build"
 APP_BUNDLE="${BUILD_DIR}/${APP_NAME}.app"
 INSTALL_PATH="/Applications/${APP_NAME}.app"
-VERSION="1.1.0"
+VERSION="1.2.0"
 
 echo "==> Building ${DISPLAY_NAME} v${VERSION}..."
 

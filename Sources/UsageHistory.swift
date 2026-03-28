@@ -20,6 +20,9 @@ struct UsagePrediction {
     let peakHourOfDay: Int?    // which hour you tend to use most
     let avgDailyBurn: Double   // average % consumed per day (5h window)
     let formatted: String      // human-readable summary
+    let estimatedConcurrentUsers: Int  // 1 = just you, 2+ = likely shared
+    let currentBurnRatePerHour: Double  // current % per hour burn
+    let avgBurnRatePerHour: Double      // historical avg % per hour
 }
 
 class UsageHistory {
@@ -179,6 +182,26 @@ class UsageHistory {
             parts.append("Heaviest around \(ampm)")
         }
 
+        // Estimate concurrent users: compare recent burn rate vs historical average
+        // If someone usually burns 5%/hr solo but right now it's 15%/hr, ~3 people are active
+        let recentRate: Double
+        if hourlyRates.count >= 3 {
+            // Last 3 data points = most recent ~15-30 min
+            let last3 = Array(hourlyRates.suffix(3))
+            recentRate = last3.reduce(0, +) / Double(last3.count)
+        } else {
+            recentRate = smoothedRate
+        }
+
+        var concurrentUsers = 1
+        if avgRate > 0.005 && recentRate > 0 {
+            // Ratio of current rate to average rate gives estimated active users
+            let ratio = recentRate / avgRate
+            concurrentUsers = max(1, Int(ratio.rounded()))
+            // Cap at reasonable number
+            concurrentUsers = min(concurrentUsers, 10)
+        }
+
         let formatted = parts.isEmpty ? "Learning your patterns..." : parts.joined(separator: " · ")
 
         return UsagePrediction(
@@ -187,7 +210,10 @@ class UsageHistory {
             peakDayOfWeek: peakDay,
             peakHourOfDay: peakHour,
             avgDailyBurn: avgDaily,
-            formatted: formatted
+            formatted: formatted,
+            estimatedConcurrentUsers: concurrentUsers,
+            currentBurnRatePerHour: recentRate * 100,  // as percentage
+            avgBurnRatePerHour: avgRate * 100
         )
     }
 
