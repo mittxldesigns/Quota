@@ -233,6 +233,10 @@ class RateLimitService: ObservableObject {
     let history = UsageHistory()
     @Published var prediction: UsagePrediction?
 
+    // Token consumption stats (from Claude Code local data)
+    private let tokenTracker = TokenTracker.shared
+    @Published var tokenStats: TokenStats?
+
     // Live "updated ago" ticker
     private var tickTimer: Timer?
 
@@ -369,6 +373,7 @@ class RateLimitService: ObservableObject {
         errorMessage = nil
         callsWithCurrentToken = 0
         consecutiveFailures = 0
+        tokenStats = tokenTracker.refresh()
         if tickTimer == nil {
             tickTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.updateTimestamp() }
@@ -495,11 +500,15 @@ class RateLimitService: ObservableObject {
                     consecutiveFailures = 0
                     if wasBackingOff { restartTimer() }
                     checkAndNotify(parsed)
-                    // Record for learning, predict on background thread
+                    // Record for learning, predict + refresh tokens on background thread
                     history.record(fiveHour: parsed.fiveHourUtilization, sevenDay: parsed.sevenDayUtilization)
-                    Task.detached(priority: .utility) { [history] in
+                    Task.detached(priority: .utility) { [history, tokenTracker] in
                         let p = history.predict()
-                        await MainActor.run { [weak self] in self?.prediction = p }
+                        let ts = tokenTracker.refresh()
+                        await MainActor.run { [weak self] in
+                            self?.prediction = p
+                            self?.tokenStats = ts
+                        }
                     }
                 } else {
                     handleFetchFailure("Could not parse usage data")

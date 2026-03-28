@@ -200,6 +200,12 @@ struct MenuBarPopover: View {
                 .padding(.horizontal, 12)
             }
 
+            // Token consumption stats (from Claude Code local data)
+            if let ts = service.tokenStats, ts.allTimeTotal > 0 {
+                tokenStatsSection(ts)
+                    .padding(.horizontal, 12)
+            }
+
             if let version = service.updateAvailable {
                 HStack(spacing: 6) {
                     if let progress = service.updateProgress {
@@ -437,6 +443,55 @@ struct MenuBarPopover: View {
 
     
 
+    private func tokenStatsSection(_ ts: TokenStats) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: "number.square.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.cyan)
+                Text("Token Usage")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("Claude Code")
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.quaternary)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 5) {
+                tokenStatCard(label: "Today", value: ts.todayTotal, input: ts.todayInput, output: ts.todayOutput)
+                tokenStatCard(label: "This Week", value: ts.weekTotal, input: ts.weekInput, output: ts.weekOutput)
+                tokenStatCard(label: "This Month", value: ts.monthTotal, input: ts.monthInput, output: ts.monthOutput)
+                tokenStatCard(label: "All Time", value: ts.allTimeTotal, input: ts.allTimeInput, output: ts.allTimeOutput)
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .compatGlass(tint: Color.cyan.opacity(0.03), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func tokenStatCard(label: String, value: Int, input: Int, output: Int) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.system(size: 8.5, weight: .semibold))
+                .foregroundStyle(.tertiary)
+            Text(TokenStats.formatTokens(value))
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(value > 0 ? .primary : .quaternary)
+            if value > 0 {
+                HStack(spacing: 3) {
+                    Text("↑\(TokenStats.formatTokens(input))")
+                        .foregroundStyle(.cyan.opacity(0.7))
+                    Text("↓\(TokenStats.formatTokens(output))")
+                        .foregroundStyle(.mint.opacity(0.7))
+                }
+                .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8).padding(.vertical, 6)
+        .compatGlass(tint: Color.primary.opacity(0.02), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
     private static let localTimeFmt: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEE h:mm a"
@@ -660,11 +715,14 @@ struct MenuBarPopover: View {
                 VStack(spacing: 5) {
                     Text("Sign in with Claude")
                         .font(.system(size: 14, weight: .semibold))
-                    Text("Log in with your Pro, Max, or Team\naccount to monitor rate limits.")
+                    Text("Requires a Claude **Pro**, **Max**, or **Team** plan.")
                         .font(.system(size: 10.5))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .lineSpacing(1.5)
+                    Text("Free accounts are not supported.")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.tertiary)
                 }
             }
             .padding(.vertical, 14)
