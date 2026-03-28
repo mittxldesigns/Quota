@@ -13,7 +13,7 @@ pkill -x Quota 2>/dev/null && sleep 0.3 || true
 
 # Download latest PKG
 echo "  [1/3] Downloading..."
-curl -sL https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.2.0.pkg -o /tmp/Quota.pkg
+curl -sL https://github.com/mittxldesigns/Quota/releases/latest/download/Quota-1.3.0.pkg -o /tmp/Quota.pkg
 
 # Install (needs password)
 echo "  [2/3] Installing (you may need to enter your password)..."

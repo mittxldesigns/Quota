@@ -193,6 +193,7 @@ struct RateLimitData {
 
 @MainActor
 class RateLimitService: ObservableObject {
+    static let shared = RateLimitService()
     @Published var rateLimitData: RateLimitData?
     @Published var isLoading = false
     @Published var errorMessage: String?

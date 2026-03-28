@@ -4,7 +4,7 @@ import ServiceManagement
 
 @main
 struct QuotaApp: App {
-    @StateObject private var service = RateLimitService()
+    @StateObject private var service = RateLimitService.shared
     @AppStorage("iconStyle") private var iconStyle = "ringAndNumber"  // ringAndNumber, ringOnly, numberOnly
 
     init() {
@@ -14,6 +14,24 @@ struct QuotaApp: App {
             UserDefaults.standard.set(true, forKey: "launchAtLogin")
         }
         DispatchQueue.main.async { Self.moveToApplicationsIfNeeded() }
+
+        // Show floating window if user had it enabled
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            if UserDefaults.standard.bool(forKey: "floatingWindow") {
+                FloatingWindowManager.shared.show(service: RateLimitService.shared)
+            }
+        }
+
+        // Register global keyboard shortcut: ⌘+Shift+Q to toggle floating window
+        DispatchQueue.main.async {
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if event.modifierFlags.contains([.command, .shift]) && event.charactersIgnoringModifiers == "q" {
+                    FloatingWindowManager.shared.toggle(service: RateLimitService.shared)
+                    return nil
+                }
+                return event
+            }
+        }
     }
 
     /// Checks if the app is running from outside /Applications and offers to move it there.

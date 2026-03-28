@@ -951,6 +951,26 @@ struct MenuBarPopover: View {
 
                     Toggle("Advanced Mode", isOn: $advancedMode)
 
+                    Toggle("Floating Window", isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: "floatingWindow") },
+                        set: { newValue in
+                            UserDefaults.standard.set(newValue, forKey: "floatingWindow")
+                            if newValue {
+                                FloatingWindowManager.shared.show(service: service)
+                            } else {
+                                FloatingWindowManager.shared.hide()
+                            }
+                        }
+                    ))
+
+                    Divider()
+
+                    Button {
+                        shareQuota()
+                    } label: {
+                        Label("Share Quota", systemImage: "square.and.arrow.up")
+                    }
+
                     Divider()
 
                     Button("Sign Out", role: .destructive) { service.disconnect() }
@@ -999,6 +1019,30 @@ struct MenuBarPopover: View {
         case "team": return "Team"
         case "free": return "Free"
         default: return p.capitalized
+        }
+    }
+
+    private func shareQuota() {
+        var text = "I use Quota to track my Claude rate limits in real time."
+        if let ts = service.tokenStats, ts.allTimeTotal > 0 {
+            text = "I've used \(TokenStats.formatTokens(ts.allTimeTotal)) tokens on Claude"
+            let cost = ts.apiCost
+            let plan = TokenStats.planCost(service.userPlan)
+            if cost > plan {
+                text += " — saved \(TokenStats.formatCost(cost - plan)) vs API pricing"
+            }
+            text += ". Tracking it all with Quota."
+        }
+        text += "\n\nhttps://github.com/mittxldesigns/Quota"
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+
+        // Also open Twitter compose
+        let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let url = URL(string: "https://twitter.com/intent/tweet?text=\(encoded)") {
+            NSWorkspace.shared.open(url)
         }
     }
 }
