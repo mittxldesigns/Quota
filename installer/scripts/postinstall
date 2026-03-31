@@ -2,8 +2,39 @@
 # Remove quarantine attribute (kills Gatekeeper warning)
 xattr -cr /Applications/Quota.app 2>/dev/null
 
-# Launch Quota for the user (not as root)
+# Get the actual logged-in user (not root)
 CONSOLE_USER=$(stat -f "%Su" /dev/console)
+USER_HOME=$(eval echo ~$CONSOLE_USER)
+
+# Clean up stale Claude Code sessions (cache bug mitigation)
+if [ -d "$USER_HOME/.claude/sessions" ]; then
+    for f in "$USER_HOME/.claude/sessions"/*.json; do
+        [ -f "$f" ] || continue
+        PID=$(python3 -c "import json; print(json.load(open('$f')).get('pid',''))" 2>/dev/null)
+        if [ -n "$PID" ] && ! kill -0 "$PID" 2>/dev/null; then
+            rm -f "$f"
+        fi
+    done
+fi
+
+# Add cache optimization to CLAUDE.md if not already present
+CLAUDE_MD="$USER_HOME/.claude/CLAUDE.md"
+MARKER="# Cache Optimization (added by Quota)"
+if [ -f "$CLAUDE_MD" ]; then
+    if ! grep -q "$MARKER" "$CLAUDE_MD" 2>/dev/null; then
+        cat >> "$CLAUDE_MD" << 'CACHEEOF'
+
+# Cache Optimization (added by Quota)
+- Keep sessions under 2 hours to avoid the prompt caching bug (March 2026)
+- Start fresh sessions for new tasks instead of continuing old ones
+- Avoid using --resume flag until the cache regression is patched
+- Break large refactors into smaller, focused sessions
+CACHEEOF
+        chown "$CONSOLE_USER" "$CLAUDE_MD"
+    fi
+fi
+
+# Launch Quota for the user (not as root)
 if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
     sudo -u "$CONSOLE_USER" open /Applications/Quota.app &
 fi

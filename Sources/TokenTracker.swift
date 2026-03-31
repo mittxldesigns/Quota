@@ -35,6 +35,28 @@ struct TokenStats {
     var monthHaikuIn: Int = 0
     var monthHaikuOut: Int = 0
 
+    // Cache token tracking (detects the March 2026 caching bug)
+    var cacheCreationTokens: Int = 0
+    var cacheReadTokens: Int = 0
+
+    // Cache health: ratio of cache_creation to input tokens
+    // Normal: < 5x. Buggy: > 20x (tokens being re-billed every turn)
+    var cacheRatio: Double {
+        guard allTimeInput > 0 else { return 0 }
+        return Double(cacheCreationTokens) / Double(allTimeInput)
+    }
+    var isCacheBroken: Bool { cacheRatio > 20 }
+
+    // Estimated wasted cost from cache bug (cache creation at 25% of input pricing)
+    var cacheBugWastedCost: Double {
+        guard isCacheBroken else { return 0 }
+        // Cache creation costs 25% of input price. Opus: $15 input -> $3.75 cache create
+        // Normal cache creation should be ~1x input tokens. Anything over is waste.
+        let normalCacheCreate = allTimeInput  // what it should be
+        let excess = max(0, cacheCreationTokens - normalCacheCreate)
+        return Double(excess) * 3.75 / 1_000_000  // Opus cache creation pricing
+    }
+
     var todayTotal: Int { todayInput + todayOutput }
     var weekTotal: Int { weekInput + weekOutput }
     var monthTotal: Int { monthInput + monthOutput }
@@ -174,9 +196,13 @@ class TokenTracker {
                 guard let u = usage else { continue }
                 let inp = (u["input_tokens"] as? Int) ?? 0
                 let out = (u["output_tokens"] as? Int) ?? 0
+                let cacheCreate = (u["cache_creation_input_tokens"] as? Int) ?? 0
+                let cacheRead = (u["cache_read_input_tokens"] as? Int) ?? 0
 
                 stats.allTimeInput += inp
                 stats.allTimeOutput += out
+                stats.cacheCreationTokens += cacheCreate
+                stats.cacheReadTokens += cacheRead
 
                 // Time bucketing based on file mod date
                 if fileDate >= startOfToday {

@@ -140,6 +140,50 @@ struct MenuBarPopover: View {
             .compatGlass(tint: isMaxUser ? Theme.maxGlow : Theme.glassTint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .padding(.horizontal, 10)
 
+            // Cache bug warning + fix button
+            if let ts = service.tokenStats, ts.isCacheBroken {
+                VStack(spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.red)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Cache bug detected")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.red)
+                            Text("Tokens re-billed \(Int(ts.cacheRatio))x · ~\(TokenStats.formatCost(ts.cacheBugWastedCost)) wasted")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    HStack(spacing: 8) {
+                        Button {
+                            CacheFixer.fix()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "wrench.fill")
+                                    .font(.system(size: 9))
+                                Text("Fix Now")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.white)
+                        .compatGlass(tint: Color.red.opacity(0.4), in: .capsule)
+
+                        Text("Clears stale sessions & optimizes config")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal, 10).padding(.vertical, 8)
+                .compatGlass(tint: Color.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(.horizontal, 10)
+            }
+
             // Status strip: peak + users + prediction all in one row
             HStack(spacing: 10) {
                 // Peak badge
