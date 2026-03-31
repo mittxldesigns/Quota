@@ -844,16 +844,18 @@ class RateLimitService: ObservableObject {
                     sleep 0.2
                 done
                 rm -rf \(escApp)
-                if cp -R \(escSrc) \(escApp); then
+                if ditto \(escSrc) \(escApp); then
+                    xattr -r -d com.apple.quarantine \(escApp) 2>/dev/null || true
+                    codesign --force --deep --sign - \(escApp) 2>/dev/null || true
                     hdiutil detach \(escMount) -quiet 2>/dev/null
                     rm -f \(escDmg)
                     rm -f \(escScript)
-                    open \(escApp)
+                    open -n \(escApp)
                 else
                     hdiutil detach \(escMount) -quiet 2>/dev/null
                     rm -f \(escDmg)
                     rm -f \(escScript)
-                    osascript -e 'display notification "Update failed" with title "Quota"'
+                    osascript -e 'display notification "Update failed — reopen manually" with title "Quota"'
                 fi
                 """
 
