@@ -16,6 +16,19 @@ enum ClaudeCodeHealth {
         enum Action {
             case updateClaudeCode
             case openURL(URL)
+
+            var buttonLabel: String {
+                switch self {
+                case .updateClaudeCode: return "Update"
+                case .openURL: return "Details"
+                }
+            }
+            var buttonIcon: String {
+                switch self {
+                case .updateClaudeCode: return "arrow.down.circle"
+                case .openURL: return "arrow.up.right"
+                }
+            }
         }
     }
 

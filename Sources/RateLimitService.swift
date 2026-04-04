@@ -471,12 +471,20 @@ class RateLimitService: ObservableObject {
                 callsWithCurrentToken = 0
                 lastTokenRefresh = Date()
                 refreshedInThisRequest = true
+            } catch let error as OAuthError {
+                // Only delete credentials if the refresh token was definitively rejected
+                // (exchangeFailed means server said no — token is dead)
+                // Network errors should NOT delete credentials — the token might still be valid
+                switch error {
+                case .exchangeFailed, .noRefreshToken, .noAccessToken:
+                    CredentialStore.delete()
+                    credentials = nil
+                default:
+                    break  // Keep credentials for transient errors
+                }
+                throw error
             } catch {
-                // The server may have already consumed the old refresh token.
-                // If we failed to receive the new one, the stored token is now dead.
-                // Clear it so the user gets a clean re-login prompt.
-                CredentialStore.delete()
-                credentials = nil
+                // Network/URL errors — don't delete credentials, just propagate
                 throw error
             }
         }
@@ -500,10 +508,17 @@ class RateLimitService: ObservableObject {
             guard let freshCreds = credentials else { isLoading = false; return }
             creds = freshCreds
         } catch {
-            errorMessage = "Session expired — please sign in again"
-            isConnected = false
-            isLoading = false
-            timer?.invalidate(); timer = nil  // Fix #6: Stop polling on permanent auth failure
+            // Only disconnect if credentials were actually deleted (permanent failure)
+            if credentials == nil {
+                errorMessage = "Session expired — please sign in again"
+                isConnected = false
+                isLoading = false
+                timer?.invalidate(); timer = nil
+            } else {
+                // Transient error — credentials still valid, just skip this poll
+                handleFetchFailure("Token refresh failed — retrying")
+                isLoading = false
+            }
             return
         }
 

@@ -121,19 +121,44 @@ struct MenuBarPopover: View {
                         Button {
                             switch action {
                             case .updateClaudeCode:
-                                // Copy update command to clipboard
+                                // Run claude update in background and copy command
                                 NSPasteboard.general.clearContents()
                                 NSPasteboard.general.setString("claude update", forType: .string)
+                                // Try to run the update
+                                Task.detached {
+                                    let proc = Process()
+                                    proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+                                    proc.arguments = ["claude", "update"]
+                                    proc.standardOutput = FileHandle.nullDevice
+                                    proc.standardError = FileHandle.nullDevice
+                                    try? proc.run()
+                                    proc.waitUntilExit()
+                                    await MainActor.run {
+                                        service.healthAlert = nil  // Dismiss after attempt
+                                    }
+                                }
                             case .openURL(let url):
                                 NSWorkspace.shared.open(url)
                             }
                         } label: {
-                            Text(alert.action is ClaudeCodeHealth.Alert.Action ? "Fix" : "Fix")
-                                .font(.system(size: 9, weight: .semibold))
-                                .padding(.horizontal, 8).padding(.vertical, 3)
+                            HStack(spacing: 3) {
+                                Image(systemName: action.buttonIcon)
+                                    .font(.system(size: 8))
+                                Text(action.buttonLabel)
+                                    .font(.system(size: 9, weight: .semibold))
+                            }
+                            .padding(.horizontal, 8).padding(.vertical, 3)
                         }
                         .buttonStyle(.plain)
                         .compatGlassInteractive(tint: (alert.severity == .critical ? Color.red : Color.orange).opacity(0.3), in: .capsule)
+
+                        // Dismiss button
+                        Button { service.healthAlert = nil } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundStyle(.quaternary)
+                        }
+                        .buttonStyle(.borderless)
                     }
                 }
                 .padding(.horizontal, 10).padding(.vertical, 6)
