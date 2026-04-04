@@ -329,6 +329,12 @@ class RateLimitService: ObservableObject {
         }
         cleanupOrphanedMount()
         Task { await checkForUpdate() }
+
+        // Check Claude Code version for known issues
+        Task.detached(priority: .utility) {
+            let alert = ClaudeCodeHealth.check()
+            await MainActor.run { [weak self] in self?.healthAlert = alert }
+        }
     }
 
     deinit {
@@ -616,6 +622,18 @@ class RateLimitService: ObservableObject {
                     }
                 }
 
+            case 403:
+                // Anthropic may have blocked third-party OAuth (April 2026 policy)
+                UserDefaults.standard.set(true, forKey: "oauthBlocked")
+                healthAlert = ClaudeCodeHealth.Alert(
+                    icon: "lock.shield.fill",
+                    title: "Access restricted by Anthropic",
+                    message: "Anthropic has limited third-party OAuth access as of April 2026. Quota may need an update to continue working.",
+                    severity: .critical,
+                    action: .openURL(URL(string: "https://github.com/mittxldesigns/Quota/issues")!)
+                )
+                handleFetchFailure("OAuth access restricted (403)")
+
             default:
                 handleFetchFailure("Server error (HTTP \(http.statusCode))")
             }
@@ -764,6 +782,7 @@ class RateLimitService: ObservableObject {
     }
 
     @Published var updateProgress: String?
+    @Published var healthAlert: ClaudeCodeHealth.Alert?
     private var isUpdating = false
 
     private static nonisolated let updateMountPoint = "/tmp/quota-update-mount"

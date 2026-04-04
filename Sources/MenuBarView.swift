@@ -100,6 +100,47 @@ struct MenuBarPopover: View {
             headerRow(data)
                 .padding(.horizontal, 14).padding(.top, 10)
 
+            // Health alerts (version issues, OAuth blocks)
+            if let alert = service.healthAlert {
+                HStack(spacing: 6) {
+                    Image(systemName: alert.icon)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(alert.severity == .critical ? .red : alert.severity == .warning ? .orange : .blue)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(alert.title)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(alert.severity == .critical ? .red : .primary)
+                        Text(alert.message)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    if let action = alert.action {
+                        Button {
+                            switch action {
+                            case .updateClaudeCode:
+                                // Copy update command to clipboard
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString("claude update", forType: .string)
+                            case .openURL(let url):
+                                NSWorkspace.shared.open(url)
+                            }
+                        } label: {
+                            Text(alert.action is ClaudeCodeHealth.Alert.Action ? "Fix" : "Fix")
+                                .font(.system(size: 9, weight: .semibold))
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                        }
+                        .buttonStyle(.plain)
+                        .compatGlassInteractive(tint: (alert.severity == .critical ? Color.red : Color.orange).opacity(0.3), in: .capsule)
+                    }
+                }
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .compatGlass(tint: (alert.severity == .critical ? Color.red : Color.orange).opacity(0.05), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(.horizontal, 10)
+            }
+
             // Main display: rings left, stats right
             HStack {
                 concentricRings(data)
