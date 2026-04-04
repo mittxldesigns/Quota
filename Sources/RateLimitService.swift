@@ -213,6 +213,7 @@ class RateLimitService: ObservableObject {
 
     // Exponential backoff on consecutive failures
     private var consecutiveFailures = 0
+    private var consecutiveRefreshFailures = 0
     private let maxBackoffInterval: TimeInterval = 600  // 10 min cap
 
     // Notification thresholds — only fire once per crossing
@@ -436,16 +437,42 @@ class RateLimitService: ObservableObject {
 
     
 
+    private var lastTokenRefresh: Date?
+    private var refreshedInThisRequest = false
+
     private func ensureFreshToken() async throws {
         guard var creds = credentials else { return }
+        refreshedInThisRequest = false
 
-        let needsRefresh = creds.isExpired || callsWithCurrentToken >= maxCallsPerToken
+        // Use persisted lastRefreshed if in-memory isn't set (first launch)
+        let staleThreshold: TimeInterval = 3 * 3600  // 3 hours
+        let anchor = lastTokenRefresh ?? creds.lastRefreshed
+        let isStale = anchor.map { Date().timeIntervalSince($0) > staleThreshold } ?? true
+        let needsRefresh = creds.isExpired || callsWithCurrentToken >= maxCallsPerToken || isStale
 
         if needsRefresh {
-            creds = try await OAuthManager.refresh(creds)
-            credentials = creds
-            CredentialStore.save(creds)
-            callsWithCurrentToken = 0
+            do {
+                creds = try await OAuthManager.refresh(creds)
+                // Stamp with lastRefreshed so it persists across launches
+                creds = OAuthCredentials(
+                    accessToken: creds.accessToken,
+                    refreshToken: creds.refreshToken,
+                    expiresAt: creds.expiresAt,
+                    lastRefreshed: Date()
+                )
+                credentials = creds
+                CredentialStore.save(creds)
+                callsWithCurrentToken = 0
+                lastTokenRefresh = Date()
+                refreshedInThisRequest = true
+            } catch {
+                // The server may have already consumed the old refresh token.
+                // If we failed to receive the new one, the stored token is now dead.
+                // Clear it so the user gets a clean re-login prompt.
+                CredentialStore.delete()
+                credentials = nil
+                throw error
+            }
         }
     }
 
@@ -505,6 +532,7 @@ class RateLimitService: ObservableObject {
                     errorMessage = nil
                     let wasBackingOff = consecutiveFailures > 0
                     consecutiveFailures = 0
+                    consecutiveRefreshFailures = 0  // Reset on any success
                     if wasBackingOff { restartTimer() }
                     checkAndNotify(parsed)
                     // Record for learning, predict + refresh tokens on background thread
@@ -548,11 +576,17 @@ class RateLimitService: ObservableObject {
                 }
 
             case 401:
+                // If we JUST refreshed in ensureFreshToken and still got 401, don't burn another token
+                guard !refreshedInThisRequest else {
+                    handleFetchFailure("Token rejected after refresh — retrying")
+                    break
+                }
                 do {
                     let newCreds = try await OAuthManager.refresh(creds)
                     credentials = newCreds
                     CredentialStore.save(newCreds)
                     callsWithCurrentToken = 0
+                    lastTokenRefresh = Date()
                     var retry = req
                     retry.setValue("Bearer \(newCreds.accessToken)", forHTTPHeaderField: "Authorization")
                     let (retryData, retryResp) = try await URLSession.shared.data(for: retry)
@@ -566,14 +600,20 @@ class RateLimitService: ObservableObject {
                         callsWithCurrentToken = 1
                         lastUpdated = Date(); updateTimestamp()
                     } else {
-                        errorMessage = "Session expired — please sign in again"
-                        isConnected = false
-                        timer?.invalidate(); timer = nil  // Fix #6
+                        // Refresh worked but retry failed — keep trying, don't disconnect
+                        handleFetchFailure("Auth refreshed but API unavailable — retrying")
                     }
                 } catch {
-                    errorMessage = "Session expired — please sign in again"
-                    isConnected = false
-                    timer?.invalidate(); timer = nil  // Fix #6
+                    // Refresh failed — only disconnect after 3 consecutive failures
+                    consecutiveRefreshFailures += 1
+                    if consecutiveRefreshFailures >= 3 {
+                        errorMessage = "Session expired — please sign in again"
+                        isConnected = false
+                        timer?.invalidate(); timer = nil
+                        consecutiveRefreshFailures = 0
+                    } else {
+                        handleFetchFailure("Token refresh failed — retrying (\(consecutiveRefreshFailures)/3)")
+                    }
                 }
 
             default:

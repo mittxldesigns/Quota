@@ -19,10 +19,18 @@ struct OAuthCredentials: Codable {
     let accessToken: String
     let refreshToken: String?
     let expiresAt: Date?
+    let lastRefreshed: Date?  // persisted so we don't re-refresh on every app launch
 
     var isExpired: Bool {
         guard let exp = expiresAt else { return false }
         return Date() >= exp.addingTimeInterval(-60)
+    }
+
+    init(accessToken: String, refreshToken: String?, expiresAt: Date?, lastRefreshed: Date? = nil) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.expiresAt = expiresAt
+        self.lastRefreshed = lastRefreshed
     }
 }
 
@@ -370,7 +378,17 @@ final class OAuthManager: ObservableObject {
             let msg = sanitizedError(from: data)
             throw OAuthError.exchangeFailed(msg)
         }
-        return try parseTokenResponse(data)
+        var newCreds = try parseTokenResponse(data)
+        // Preserve the old refresh token if the server didn't send a new one
+        // (Anthropic refresh tokens are single-use but the response should include a new one)
+        if newCreds.refreshToken == nil {
+            newCreds = OAuthCredentials(
+                accessToken: newCreds.accessToken,
+                refreshToken: creds.refreshToken,
+                expiresAt: newCreds.expiresAt
+            )
+        }
+        return newCreds
     }
 
     
