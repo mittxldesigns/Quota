@@ -121,22 +121,17 @@ struct MenuBarPopover: View {
                         Button {
                             switch action {
                             case .updateClaudeCode:
-                                // Run claude update in background and copy command
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString("claude update", forType: .string)
-                                // Try to run the update
-                                Task.detached {
-                                    let proc = Process()
-                                    proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-                                    proc.arguments = ["claude", "update"]
-                                    proc.standardOutput = FileHandle.nullDevice
-                                    proc.standardError = FileHandle.nullDevice
-                                    try? proc.run()
-                                    proc.waitUntilExit()
-                                    await MainActor.run {
-                                        service.healthAlert = nil  // Dismiss after attempt
-                                    }
-                                }
+                                // Open Terminal and run claude update so user can see it
+                                let script = """
+                                tell application "Terminal"
+                                    activate
+                                    do script "claude update"
+                                end tell
+                                """
+                                let proc = Process()
+                                proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                                proc.arguments = ["-e", script]
+                                try? proc.run()
                             case .openURL(let url):
                                 NSWorkspace.shared.open(url)
                             }
